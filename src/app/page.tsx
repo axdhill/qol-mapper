@@ -1,65 +1,174 @@
-import Image from "next/image";
+"use client";
+
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import Sidebar from "@/components/Sidebar/Sidebar";
+import SearchBar from "@/components/Search/SearchBar";
+import CompositeLegend from "@/components/Legend/CompositeLegend";
+import DetailPanel from "@/components/DetailPanel/DetailPanel";
+import { useLayerStore } from "@/stores/layerStore";
+import { getAllLayers } from "@/layers/registry";
+import { getScoreGrid } from "@/lib/compositeRenderer";
+import type { CompositeResult, ScoreBreakdownItem } from "@/lib/scoring";
+import { SEARCH_ZOOM, FLY_TO_DURATION_MS } from "@/lib/constants";
+import type { GeocodingResult } from "@/lib/geocoding";
+
+// Dynamic import to avoid SSR for WebGL map
+const MapContainer = dynamic(
+  () => import("@/components/Map/MapContainer"),
+  { ssr: false }
+);
 
 export default function Home() {
+  // Register all layers on mount (client-side only)
+  useEffect(() => {
+    import("@/layers/init");
+  }, []);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapRef = useRef<any>(null);
+  const [clickedPoint, setClickedPoint] = useState<{
+    lng: number;
+    lat: number;
+  } | null>(null);
+  const [compositeResult, setCompositeResult] =
+    useState<CompositeResult | null>(null);
+
+  const weights = useLayerStore((s) => s.weights);
+  const enabledLayers = useLayerStore((s) => s.enabledLayers);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleMapReady = useCallback((map: any) => {
+    mapRef.current = map;
+  }, []);
+
+  const handleMapClick = useCallback(
+    async (lng: number, lat: number) => {
+      setClickedPoint({ lng, lat });
+      setCompositeResult(null);
+
+      const allLayers = getAllLayers();
+      const activeLayers = allLayers.filter(
+        (l) => enabledLayers.has(l.id) && l.dataAvailable !== false
+      );
+
+      if (activeLayers.length === 0) return;
+
+      const breakdown: ScoreBreakdownItem[] = [];
+      let weightedSum = 0;
+      let totalWeight = 0;
+
+      for (const layer of activeLayers) {
+        const w = weights[layer.id] ?? layer.defaultWeight;
+        let score: number | null = null;
+        let rawGridValue: number | null = null;
+
+        try {
+          if (layer.scoreGridPath) {
+            // Load full grid (cached after first map render) to apply the same
+            // per-layer min-max normalization the composite renderer uses.
+            const grid = await getScoreGrid(layer.scoreGridPath);
+            const { data, meta } = grid;
+
+            // Compute per-layer min/max (mirrors compositeRenderer)
+            let mn = Infinity;
+            let mx = -Infinity;
+            for (let i = 0; i < data.length; i++) {
+              const v = data[i];
+              if (!isNaN(v)) {
+                if (v < mn) mn = v;
+                if (v > mx) mx = v;
+              }
+            }
+            const layerRange = mx > mn ? mx - mn : 1;
+            const layerMin = mn === Infinity ? 0 : mn;
+
+            const col = Math.floor((lng - meta.originX) / meta.pixelWidth);
+            const row = Math.floor((lat - meta.originY) / meta.pixelHeight);
+            if (col >= 0 && col < meta.width && row >= 0 && row < meta.height) {
+              const raw = data[row * meta.width + col];
+              if (!isNaN(raw)) {
+                rawGridValue = raw;
+                score = Math.max(0, Math.min(1, (raw - layerMin) / layerRange));
+              }
+            }
+          } else if (layer.queryPoint) {
+            const raw = await layer.queryPoint(lng, lat, mapRef.current);
+            if (raw != null) {
+              rawGridValue = raw;
+              score = layer.normalizeValue(raw);
+            }
+          }
+        } catch {
+          score = null;
+        }
+
+        if (score != null && w > 0) {
+          weightedSum += score * w;
+          totalWeight += w;
+        }
+
+        breakdown.push({
+          layerId: layer.id,
+          layerName: layer.name,
+          rawValue: rawGridValue,
+          normalizedScore: score,
+          weight: w,
+          contribution: score != null ? score * w : 0,
+        });
+      }
+
+      setCompositeResult({
+        score: totalWeight > 0 ? weightedSum / totalWeight : 0,
+        breakdown,
+        totalWeight,
+      });
+    },
+    [weights, enabledLayers]
+  );
+
+  const handleSearchSelect = useCallback((result: GeocodingResult) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    map.flyTo({
+      center: [result.lng, result.lat],
+      zoom: SEARCH_ZOOM,
+      duration: FLY_TO_DURATION_MS,
+    });
+  }, []);
+
+  const handleCloseDetail = useCallback(() => {
+    setClickedPoint(null);
+    setCompositeResult(null);
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="relative w-full h-full overflow-hidden">
+      {/* Map (full screen background) */}
+      <MapContainer onMapClick={handleMapClick} onMapReady={handleMapReady} />
+
+      {/* Sidebar (left) */}
+      <Sidebar />
+
+      {/* Search bar (top center) */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4">
+        <SearchBar onSelect={handleSearchSelect} />
+      </div>
+
+      {/* Legend (bottom center) */}
+      <CompositeLegend />
+
+      {/* Detail panel (right, shown on click) */}
+      {clickedPoint && (
+        <DetailPanel
+          lng={clickedPoint.lng}
+          lat={clickedPoint.lat}
+          compositeResult={compositeResult}
+          onClose={handleCloseDetail}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      )}
     </div>
   );
 }

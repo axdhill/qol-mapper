@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 @theme inline {
@@ -12,15 +12,70 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* MapLibre overrides for dark theme */
+.maplibregl-ctrl-attrib {
+  background: rgba(24, 24, 27, 0.8) !important;
+  color: #71717a !important;
+  font-size: 10px !important;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: #a1a1aa !important;
+}
+
+.maplibregl-ctrl-group {
+  background: rgba(24, 24, 27, 0.9) !important;
+  border: 1px solid rgba(63, 63, 70, 0.5) !important;
+}
+
+.maplibregl-ctrl-group button {
+  border-bottom-color: rgba(63, 63, 70, 0.5) !important;
+}
+
+.maplibregl-ctrl-group button span {
+  filter: invert(1);
+}
+
+/* Custom scrollbar for sidebar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(63, 63, 70, 0.5) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(63, 63, 70, 0.5);
+  border-radius: 3px;
+}
+
+/* Slide-in animation */
+@keyframes slide-in-from-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-in.slide-in-from-right {
+  animation: slide-in-from-right 0.3s ease-out;
 }

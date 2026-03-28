@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Data pipeline
+data-pipeline/raw/
+data-pipeline/output/
+data-pipeline/.venv/
