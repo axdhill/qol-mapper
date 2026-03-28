@@ -44,3 +44,6 @@ next-env.d.ts
 data-pipeline/raw/
 data-pipeline/output/
 data-pipeline/.venv/
+data-pipeline/**/__pycache__/
+data-pipeline/**/*.pyc
+data-pipeline/*.egg-info/
