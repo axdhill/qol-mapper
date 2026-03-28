@@ -47,3 +47,7 @@ data-pipeline/.venv/
 data-pipeline/**/__pycache__/
 data-pipeline/**/*.pyc
 data-pipeline/*.egg-info/
+
+# Runtime data (managed separately)
+public/data/
+public/tiles/
