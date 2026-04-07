@@ -125,6 +125,9 @@ export default function MapContainer({
       if (!gridPath) continue;
       inputs.push({
         gridPath,
+        // If using a seasonal path, fall back to the annual grid if the
+        // seasonal file hasn't been generated yet.
+        fallbackGridPath: gridPath !== layer.scoreGridPath ? layer.scoreGridPath : undefined,
         weight: weights[layer.id] ?? layer.defaultWeight,
       });
     }

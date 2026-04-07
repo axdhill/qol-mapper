@@ -71,7 +71,13 @@ export default function Home() {
           if (gridPath) {
             // Load full grid (cached after first map render) to apply the same
             // per-layer min-max normalization the composite renderer uses.
-            const grid = await getScoreGrid(gridPath);
+            // If the seasonal grid isn't generated yet, fall back to the annual one.
+            let resolvedPath = gridPath;
+            if (gridPath !== layer.scoreGridPath && layer.scoreGridPath) {
+              try { await getScoreGrid(gridPath); }
+              catch { resolvedPath = layer.scoreGridPath; }
+            }
+            const grid = await getScoreGrid(resolvedPath);
             const { data, meta } = grid;
 
             // Compute per-layer min/max (mirrors compositeRenderer)

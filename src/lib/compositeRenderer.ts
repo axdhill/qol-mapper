@@ -117,6 +117,8 @@ export const COMPOSITE_RAMP_CSS = `linear-gradient(to right, rgb(215,48,39), rgb
 
 export interface CompositeInput {
   gridPath: string;
+  /** Fallback path used when gridPath fails to load (e.g. seasonal grid not yet generated). */
+  fallbackGridPath?: string;
   weight: number;
 }
 
@@ -173,15 +175,23 @@ export async function renderCompositeCanvas(
 ): Promise<HTMLCanvasElement | null> {
   if (inputs.length === 0) return null;
 
-  // Load all grids
+  // Load all grids, falling back to the annual grid if the seasonal one is missing.
   const grids: { grid: ScoreGrid; weight: number }[] = [];
   for (const input of inputs) {
     try {
       const grid = await getScoreGrid(input.gridPath);
       grids.push({ grid, weight: input.weight });
     } catch {
-      // Skip grids that fail to load
-      console.warn(`Failed to load score grid: ${input.gridPath}`);
+      if (input.fallbackGridPath) {
+        try {
+          const grid = await getScoreGrid(input.fallbackGridPath);
+          grids.push({ grid, weight: input.weight });
+        } catch {
+          console.warn(`Failed to load score grid (and fallback): ${input.gridPath}`);
+        }
+      } else {
+        console.warn(`Failed to load score grid: ${input.gridPath}`);
+      }
     }
   }
 
