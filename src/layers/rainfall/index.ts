@@ -4,9 +4,9 @@ import type { LayerDefinition } from "../types";
 
 const rainfallLayer: LayerDefinition = {
   id: "rainfall",
-  name: "Annual Rainfall",
+  name: "Precipitation",
   description:
-    "Total annual precipitation (mm/year) from WorldClim v2.1 30-year normals (1970–2000). Scored on a log scale — the gap between 200 mm and 400 mm counts as much as 1000 mm to 2000 mm.",
+    "Total precipitation (mm) from WorldClim v2.1 30-year normals (1970–2000), including rain and snowfall. Scored on a log scale. Seasonal modes show winter (Dec–Feb) or summer (Jun–Aug) totals instead of the annual figure.",
   category: "environmental",
   icon: "CloudRain",
 
@@ -41,6 +41,8 @@ const rainfallLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/rainfall-score",
+  scoreGridPathWinter: "/data/rainfall-score-winter",
+  scoreGridPathSummer: "/data/rainfall-score-summer",
   attributionUrl: "https://worldclim.org/data/worldclim21.html",
 
   legend: {

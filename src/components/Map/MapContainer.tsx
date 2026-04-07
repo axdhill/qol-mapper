@@ -7,6 +7,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { addPMTilesProtocol } from "@/lib/pmtiles";
 import { CONUS_CENTER, DEFAULT_ZOOM } from "@/lib/constants";
 import { useLayerStore } from "@/stores/layerStore";
+import { useSeasonStore } from "@/stores/seasonStore";
 import { getAllLayers } from "@/layers/registry";
 import type { LayerDefinition } from "@/layers/types";
 import {
@@ -59,6 +60,7 @@ export default function MapContainer({
   const onMapClickRef = useRef(onMapClick);
   useEffect(() => { onMapClickRef.current = onMapClick; }, [onMapClick]);
   const { enabledLayers, weights, compositeOpacity } = useLayerStore();
+  const season = useSeasonStore((s) => s.season);
   const compositeUpdateTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Initialize map
@@ -111,19 +113,20 @@ export default function MapContainer({
 
     const allLayers = getAllLayers();
 
-    // Build composite inputs from enabled layers with score grids
+    // Build composite inputs from enabled layers with score grids,
+    // using seasonal grid paths when a non-"all" season is active.
     const inputs: CompositeInput[] = [];
     for (const layer of allLayers) {
-      if (
-        enabledLayers.has(layer.id) &&
-        layer.dataAvailable !== false &&
-        layer.scoreGridPath
-      ) {
-        inputs.push({
-          gridPath: layer.scoreGridPath,
-          weight: weights[layer.id] ?? layer.defaultWeight,
-        });
-      }
+      if (!enabledLayers.has(layer.id) || layer.dataAvailable === false) continue;
+      const gridPath =
+        (season === "winter" && layer.scoreGridPathWinter) ? layer.scoreGridPathWinter :
+        (season === "summer" && layer.scoreGridPathSummer) ? layer.scoreGridPathSummer :
+        layer.scoreGridPath;
+      if (!gridPath) continue;
+      inputs.push({
+        gridPath,
+        weight: weights[layer.id] ?? layer.defaultWeight,
+      });
     }
 
     // Remove old composite layer and source
@@ -166,7 +169,7 @@ export default function MapContainer({
       // Insert before annotation layers
       getFirstAnnotationLayerId(map)
     );
-  }, [enabledLayers, weights, compositeOpacity, mapLoaded]);
+  }, [enabledLayers, weights, compositeOpacity, mapLoaded, season]);
 
   // Debounce composite updates
   useEffect(() => {

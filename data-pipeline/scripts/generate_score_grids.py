@@ -28,7 +28,7 @@ from score_grid import (
     resample_raster_to_grid,
     write_score_grid,
 )
-from utils import OUTPUT_DIR, ensure_dirs
+from utils import OUTPUT_DIR, RAW_DIR, ensure_dirs
 
 PIPELINE_DIR = Path(__file__).parent.parent
 
@@ -562,6 +562,187 @@ def generate_thunderstorms_score():
     write_score_grid(score, "thunderstorms")
 
 
+# ---------------------------------------------------------------------------
+# Seasonal helpers
+# ---------------------------------------------------------------------------
+
+WINTER_MONTHS = [12, 1, 2]   # Dec, Jan, Feb
+SUMMER_MONTHS = [6, 7, 8]    # Jun, Jul, Aug
+
+
+def _load_monthly_prec(months: list[int]) -> np.ndarray | None:
+    """Sum WorldClim prec over the given months. Returns None if data missing."""
+    prec_dir = RAW_DIR / "wc2.1_2.5m_prec"
+    if not prec_dir.exists():
+        return None
+    stack = []
+    for m in months:
+        tif = next(iter(sorted(prec_dir.glob(f"*_{m:02d}.tif"))), None)
+        if tif is None:
+            return None
+        stack.append(resample_raster_to_grid(tif))
+    arr = np.stack(stack, axis=0)
+    total = np.nansum(arr, axis=0).astype(np.float32)
+    all_nan = np.all(np.isnan(arr), axis=0)
+    total[all_nan] = np.nan
+    return total
+
+
+def _load_monthly_srad(months: list[int]) -> np.ndarray | None:
+    """Mean WorldClim srad over the given months. Returns None if data missing."""
+    srad_dir = RAW_DIR / "wc2.1_2.5m_srad"
+    if not srad_dir.exists():
+        return None
+    stack = []
+    for m in months:
+        tif = next(iter(sorted(srad_dir.glob(f"*_{m:02d}.tif"))), None)
+        if tif is None:
+            return None
+        stack.append(resample_raster_to_grid(tif))
+    arr = np.stack(stack, axis=0)
+    return np.nanmean(arr, axis=0).astype(np.float32)
+
+
+def _load_monthly_mean_temp(months: list[int]) -> np.ndarray | None:
+    """Mean daily temperature (tmax+tmin)/2 averaged over the given months."""
+    tmax_dir = RAW_DIR / "wc2.1_2.5m_tmax"
+    tmin_dir = RAW_DIR / "wc2.1_2.5m_tmin"
+    if not tmax_dir.exists() or not tmin_dir.exists():
+        return None
+    temps = []
+    for m in months:
+        tx = next(iter(sorted(tmax_dir.glob(f"*_{m:02d}.tif"))), None)
+        tn = next(iter(sorted(tmin_dir.glob(f"*_{m:02d}.tif"))), None)
+        if tx is None or tn is None:
+            return None
+        temps.append((resample_raster_to_grid(tx) + resample_raster_to_grid(tn)) / 2.0)
+    arr = np.stack(temps, axis=0)
+    return np.nanmean(arr, axis=0).astype(np.float32)
+
+
+# ---------------------------------------------------------------------------
+# Seasonal score generators
+# ---------------------------------------------------------------------------
+
+def generate_rainfall_score_winter():
+    """Winter (Dec–Feb) precipitation score.
+
+    Uses same log-scale but with seasonal bounds (3-month totals ~25% of annual):
+    ~25 mm → 0.0 (arid desert winter),  ~625 mm → 1.0 (very wet, Pacific NW).
+    """
+    label = "rainfall (winter)"
+    print(f"  Generating {label} score grid...")
+    prec = _load_monthly_prec(WINTER_MONTHS)
+    if prec is None:
+        print(f"  Skipping {label} (run process_rainfall.py first to download WorldClim prec)")
+        return
+    prec_min, prec_max = 25.0, 625.0
+    log_min, log_max = np.log1p(prec_min), np.log1p(prec_max)
+    score = np.clip(
+        (np.log1p(np.maximum(prec, 0.0)) - log_min) / (log_max - log_min),
+        0.0, 1.0,
+    ).astype(np.float32)
+    score[np.isnan(prec)] = np.nan
+    write_score_grid(score, "rainfall-winter")
+
+
+def generate_rainfall_score_summer():
+    """Summer (Jun–Aug) precipitation score.
+
+    ~20 mm → 0.0 (California desert summer),  ~600 mm → 1.0 (Gulf coast).
+    """
+    label = "rainfall (summer)"
+    print(f"  Generating {label} score grid...")
+    prec = _load_monthly_prec(SUMMER_MONTHS)
+    if prec is None:
+        print(f"  Skipping {label} (run process_rainfall.py first to download WorldClim prec)")
+        return
+    prec_min, prec_max = 20.0, 600.0
+    log_min, log_max = np.log1p(prec_min), np.log1p(prec_max)
+    score = np.clip(
+        (np.log1p(np.maximum(prec, 0.0)) - log_min) / (log_max - log_min),
+        0.0, 1.0,
+    ).astype(np.float32)
+    score[np.isnan(prec)] = np.nan
+    write_score_grid(score, "rainfall-summer")
+
+
+def generate_sunshine_score_winter():
+    """Winter (Dec–Feb) solar radiation.
+
+    Range: 2 000 kJ/m²/day (dark Pacific NW winter) → 20 000 (Arizona winter).
+    """
+    label = "sunshine (winter)"
+    print(f"  Generating {label} score grid...")
+    srad = _load_monthly_srad(WINTER_MONTHS)
+    if srad is None:
+        print(f"  Skipping {label} (run process_sunshine.py first to download WorldClim srad)")
+        return
+    srad_min, srad_max = 2_000.0, 20_000.0
+    score = np.clip((srad - srad_min) / (srad_max - srad_min), 0.0, 1.0).astype(np.float32)
+    score[np.isnan(srad)] = np.nan
+    write_score_grid(score, "sunshine-winter")
+
+
+def generate_sunshine_score_summer():
+    """Summer (Jun–Aug) solar radiation.
+
+    Range: 12 000 kJ/m²/day (cloudy NE summer) → 28 000 (desert SW summer).
+    """
+    label = "sunshine (summer)"
+    print(f"  Generating {label} score grid...")
+    srad = _load_monthly_srad(SUMMER_MONTHS)
+    if srad is None:
+        print(f"  Skipping {label} (run process_sunshine.py first to download WorldClim srad)")
+        return
+    srad_min, srad_max = 12_000.0, 28_000.0
+    score = np.clip((srad - srad_min) / (srad_max - srad_min), 0.0, 1.0).astype(np.float32)
+    score[np.isnan(srad)] = np.nan
+    write_score_grid(score, "sunshine-summer")
+
+
+def generate_temperateness_score_winter():
+    """Winter (Dec–Feb) temperature comfort: milder winters score higher.
+
+    Mean daily temp in DJF (°C):
+      −15°C → 0.0  (Minneapolis/Fairbanks level)
+      +20°C → 1.0  (Miami / Southern California level)
+    Linear, no seasonality penalty — this is purely "how warm is winter."
+    """
+    label = "temperateness (winter)"
+    print(f"  Generating {label} score grid...")
+    t = _load_monthly_mean_temp(WINTER_MONTHS)
+    if t is None:
+        print(f"  Skipping {label} (run process_temperateness.py first)")
+        return
+    # clip((t - (-15)) / (20 - (-15)), 0, 1) = clip((t + 15) / 35, 0, 1)
+    score = np.clip((t + 15.0) / 35.0, 0.0, 1.0).astype(np.float32)
+    score[np.isnan(t)] = np.nan
+    write_score_grid(score, "temperateness-winter")
+
+
+def generate_temperateness_score_summer():
+    """Summer (Jun–Aug) temperature comfort: peaks near 22°C (72°F).
+
+    Mean daily temp in JJA (°C):
+      ≤  7°C → 0.0  (too cold — no real summer)
+      22°C   → 1.0  (ideal — Denver, Chicago, Boston, Pacific Northwest highs)
+      ≥ 37°C → 0.0  (too hot — Phoenix, Death Valley level)
+    Triangular scoring symmetric around 22°C with ±15°C half-width.
+    """
+    label = "temperateness (summer)"
+    print(f"  Generating {label} score grid...")
+    t = _load_monthly_mean_temp(SUMMER_MONTHS)
+    if t is None:
+        print(f"  Skipping {label} (run process_temperateness.py first)")
+        return
+    IDEAL = 22.0
+    HALF_WIDTH = 15.0  # score = 0 at IDEAL ± HALF_WIDTH
+    score = np.clip(1.0 - np.abs(t - IDEAL) / HALF_WIDTH, 0.0, 1.0).astype(np.float32)
+    score[np.isnan(t)] = np.nan
+    write_score_grid(score, "temperateness-summer")
+
+
 def main():
     ensure_dirs()
     print("=== Generating Score Grids ===")
@@ -586,6 +767,16 @@ def main():
     generate_topography_score()
     generate_sunshine_score()
     generate_thunderstorms_score()
+
+    # Seasonal variants (require the same raw WorldClim monthly downloads)
+    print()
+    print("=== Generating Seasonal Score Grids ===")
+    generate_rainfall_score_winter()
+    generate_rainfall_score_summer()
+    generate_sunshine_score_winter()
+    generate_sunshine_score_summer()
+    generate_temperateness_score_winter()
+    generate_temperateness_score_summer()
 
     print()
     print("Done! Score grids written to public/data/")

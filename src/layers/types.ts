@@ -95,6 +95,14 @@ export interface LayerDefinition {
   scoreGridPath?: string;
 
   /**
+   * Optional seasonal variants of the score grid.
+   * When a season is active and the seasonal path exists, it replaces scoreGridPath
+   * in both the composite overlay and the click-query scoring.
+   */
+  scoreGridPathWinter?: string;
+  scoreGridPathSummer?: string;
+
+  /**
    * URL linking to the authoritative source dataset.
    * Shown as a clickable citation in the detail panel drilldown.
    */

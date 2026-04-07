@@ -6,7 +6,7 @@ const temperatenessLayer: LayerDefinition = {
   id: "temperateness",
   name: "Temperateness",
   description:
-    "Year-round temperature comfort. Penalizes hot summers, cold winters, and large seasonal swings — a place at 70°F year-round scores perfectly. Continental and high-elevation climates are penalised for wide temperature ranges even when individual seasons seem mild.",
+    "Temperature comfort score. In All Year mode: penalizes hot summers, cold winters, and large seasonal swings. In Winter mode: how mild is Dec–Feb (mild = better). In Summer mode: how comfortable is Jun–Aug (peaks ~22°C/72°F, drops for both too-cold and too-hot extremes).",
   category: "environmental",
   icon: "Thermometer",
 
@@ -41,6 +41,8 @@ const temperatenessLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/temperateness-score",
+  scoreGridPathWinter: "/data/temperateness-score-winter",
+  scoreGridPathSummer: "/data/temperateness-score-summer",
   attributionUrl: "https://worldclim.org/data/worldclim21.html",
 
   legend: {

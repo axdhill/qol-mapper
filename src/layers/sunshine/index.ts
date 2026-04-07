@@ -42,6 +42,8 @@ const sunshineLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/sunshine-score",
+  scoreGridPathWinter: "/data/sunshine-score-winter",
+  scoreGridPathSummer: "/data/sunshine-score-summer",
   attributionUrl: "https://worldclim.org/data/worldclim21.html",
 
   legend: {

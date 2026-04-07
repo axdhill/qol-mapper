@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import LayerPanel from "./LayerPanel";
+import SeasonToggle from "./SeasonToggle";
 
 export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
@@ -45,6 +46,9 @@ export default function Sidebar() {
             </p>
           </div>
         </div>
+
+        {/* Season filter */}
+        <SeasonToggle />
 
         {/* Layer panel */}
         <div className="flex-1 overflow-y-auto scrollbar-thin">

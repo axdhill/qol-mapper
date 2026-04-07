@@ -8,6 +8,7 @@ import SearchBar from "@/components/Search/SearchBar";
 import CompositeLegend from "@/components/Legend/CompositeLegend";
 import DetailPanel from "@/components/DetailPanel/DetailPanel";
 import { useLayerStore } from "@/stores/layerStore";
+import { useSeasonStore } from "@/stores/seasonStore";
 import { getAllLayers } from "@/layers/registry";
 import { getScoreGrid } from "@/lib/compositeRenderer";
 import type { CompositeResult, ScoreBreakdownItem } from "@/lib/scoring";
@@ -32,6 +33,7 @@ export default function Home() {
 
   const weights = useLayerStore((s) => s.weights);
   const enabledLayers = useLayerStore((s) => s.enabledLayers);
+  const season = useSeasonStore((s) => s.season);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleMapReady = useCallback((map: any) => {
@@ -60,10 +62,16 @@ export default function Home() {
         let rawGridValue: number | null = null;
 
         try {
-          if (layer.scoreGridPath) {
+          // Resolve which grid path to use for the active season
+          const gridPath =
+            (season === "winter" && layer.scoreGridPathWinter) ? layer.scoreGridPathWinter :
+            (season === "summer" && layer.scoreGridPathSummer) ? layer.scoreGridPathSummer :
+            layer.scoreGridPath;
+
+          if (gridPath) {
             // Load full grid (cached after first map render) to apply the same
             // per-layer min-max normalization the composite renderer uses.
-            const grid = await getScoreGrid(layer.scoreGridPath);
+            const grid = await getScoreGrid(gridPath);
             const { data, meta } = grid;
 
             // Compute per-layer min/max (mirrors compositeRenderer)
@@ -120,7 +128,7 @@ export default function Home() {
         totalWeight,
       });
     },
-    [weights, enabledLayers]
+    [weights, enabledLayers, season]
   );
 
   const handleSearchSelect = useCallback((result: GeocodingResult) => {
