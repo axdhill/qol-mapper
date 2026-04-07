@@ -81,6 +81,16 @@ def download_election_data() -> pd.DataFrame:
     print(f"  Using election year: {latest_year}")
     df = df[df["year"] == latest_year]
 
+    # The dataset reports votes per voting mode (ABSENTEE, ELECTION DAY, etc.) AND a TOTAL
+    # summary row per county.  Summing all rows would double-count where TOTAL is present.
+    # Use only TOTAL-mode rows for counties that have them; for others (mode=NaN) each
+    # party already has a single summary row so they can be used directly.
+    counties_with_total = set(df[df["mode"] == "TOTAL"]["county_fips"].unique())
+    df = df[
+        ((df["county_fips"].isin(counties_with_total)) & (df["mode"] == "TOTAL"))
+        | (~df["county_fips"].isin(counties_with_total))
+    ]
+
     # Compute vote shares by county
     county_totals = df.groupby("county_fips")["totalvotes"].first().reset_index()
     county_totals.columns = ["FIPS", "total_votes"]
