@@ -157,64 +157,6 @@ function buildMercatorRowLUT(
 }
 
 /**
- * In-place separable Gaussian blur on a flat Float32Array (row-major).
- * Cells with value < 0 are treated as "no data" (transparent) and are
- * excluded from the kernel average, so land/ocean boundaries stay clean.
- */
-function gaussianBlur(
-  buf: Float32Array,
-  width: number,
-  height: number,
-  sigma: number,
-): void {
-  // Build 1-D kernel (truncated at 3σ)
-  const radius = Math.ceil(sigma * 3);
-  const kernel = new Float32Array(2 * radius + 1);
-  let ksum = 0;
-  for (let i = -radius; i <= radius; i++) {
-    kernel[i + radius] = Math.exp(-(i * i) / (2 * sigma * sigma));
-    ksum += kernel[i + radius];
-  }
-  for (let i = 0; i < kernel.length; i++) kernel[i] /= ksum;
-
-  const tmp = new Float32Array(buf.length).fill(-1);
-
-  // Horizontal pass
-  for (let row = 0; row < height; row++) {
-    for (let col = 0; col < width; col++) {
-      let sum = 0, wt = 0;
-      for (let k = -radius; k <= radius; k++) {
-        const c = col + k;
-        if (c < 0 || c >= width) continue;
-        const v = buf[row * width + c];
-        if (v < 0) continue;           // no-data: skip
-        const w = kernel[k + radius];
-        sum += v * w;
-        wt += w;
-      }
-      tmp[row * width + col] = wt > 0 ? sum / wt : -1;
-    }
-  }
-
-  // Vertical pass (reads tmp, writes buf)
-  for (let row = 0; row < height; row++) {
-    for (let col = 0; col < width; col++) {
-      let sum = 0, wt = 0;
-      for (let k = -radius; k <= radius; k++) {
-        const r = row + k;
-        if (r < 0 || r >= height) continue;
-        const v = tmp[r * width + col];
-        if (v < 0) continue;
-        const w = kernel[k + radius];
-        sum += v * w;
-        wt += w;
-      }
-      buf[row * width + col] = wt > 0 ? sum / wt : -1;
-    }
-  }
-}
-
-/**
  * Compute the weighted composite of multiple score grids and render to canvas.
  *
  * Each layer is independently normalized to [0, 1] using its own observed
@@ -316,12 +258,6 @@ export async function renderCompositeCanvas(
       }
     }
   }
-
-  // Pass 2.5: Gaussian blur (σ≈2 cells) to smooth point-source artifacts.
-  // Point-decay layers (universities, schools) create localised high-score
-  // islands that look noisy when surrounded by uniformly low seasonal scores.
-  // The blur preserves broad geographic patterns while removing pixel-scale spikes.
-  gaussianBlur(compositeScores, canvasWidth, canvasHeight, 2.0);
 
   // Pass 3: re-normalize composite to [0, 1] so the full color ramp is always used,
   // then map to colors.
