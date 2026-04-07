@@ -62,6 +62,7 @@ const votingDemLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/voting-dem-score",
+  attributionUrl: "https://electionlab.mit.edu/data",
 
   legend: {
     type: "continuous",

@@ -61,6 +61,7 @@ const universityQualityLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/universities-score",
+  attributionUrl: "https://nces.ed.gov/ipeds/",
 
   legend: {
     type: "continuous",

@@ -3,6 +3,8 @@ import type { LayerDefinition } from "@/layers/types";
 export interface ScoreBreakdownItem {
   layerId: string;
   layerName: string;
+  attribution: string | undefined;
+  attributionUrl: string | undefined;
   rawValue: number | null;
   normalizedScore: number | null;
   weight: number;
@@ -39,6 +41,8 @@ export function computeComposite(
       breakdown.push({
         layerId: layer.id,
         layerName: layer.name,
+        attribution: layer.source.attribution,
+        attributionUrl: layer.attributionUrl,
         rawValue: raw,
         normalizedScore: null,
         weight: w,
@@ -55,6 +59,8 @@ export function computeComposite(
     breakdown.push({
       layerId: layer.id,
       layerName: layer.name,
+      attribution: layer.source.attribution,
+      attributionUrl: layer.attributionUrl,
       rawValue: raw,
       normalizedScore: normalized,
       weight: w,

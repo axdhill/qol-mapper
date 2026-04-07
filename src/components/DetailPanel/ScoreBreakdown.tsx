@@ -1,5 +1,6 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
 import { scoreToColor } from "@/lib/scoring";
 import type { ScoreBreakdownItem } from "@/lib/scoring";
 
@@ -62,6 +63,19 @@ export default function ScoreBreakdown({ breakdown }: ScoreBreakdownProps) {
                 Raw: {item.rawValue.toFixed(2)}
               </div>
             )}
+            {item.attributionUrl ? (
+              <a
+                href={item.attributionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-0.5 text-[10px] text-zinc-600 hover:text-zinc-400 transition-colors"
+              >
+                <ExternalLink size={9} />
+                {item.attribution ?? "Source"}
+              </a>
+            ) : item.attribution ? (
+              <div className="text-[10px] text-zinc-600">{item.attribution}</div>
+            ) : null}
           </div>
         );
       })}

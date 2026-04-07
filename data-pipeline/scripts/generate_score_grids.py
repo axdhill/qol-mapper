@@ -192,7 +192,7 @@ def generate_power_plants_score():
 
 
 def generate_climate_vulnerability_score():
-    """Climate vulnerability: low vulnerability = high score."""
+    """Climate vulnerability: low hazard risk = high QoL score."""
     import geopandas as gpd
 
     geojson_path = OUTPUT_DIR / "climate-vulnerability.geojson"
@@ -202,10 +202,11 @@ def generate_climate_vulnerability_score():
 
     print("  Generating climate vulnerability score grid...")
     gdf = gpd.read_file(geojson_path)
-    print(f"    {len(gdf)} tract polygons")
+    print(f"    {len(gdf)} county polygons")
 
-    # Invert: low vulnerability = high QoL score
-    gdf["score"] = 1.0 - gdf["vulnerability_index"].fillna(0.5)
+    # risk_score is 0-1 where 1 = highest hazard risk.
+    # Invert: low risk = high QoL score.
+    gdf["score"] = 1.0 - gdf["risk_score"].fillna(0.5)
     gdf["score"] = gdf["score"].clip(0, 1)
 
     score = rasterize_polygons_to_grid(gdf, "score", fill_value=0.5)
@@ -403,22 +404,29 @@ def generate_transit_score():
     write_score_grid(score, "transit")
 
 
-def generate_water_quality_score():
-    """Water quality/drought: no drought = high score."""
-    import geopandas as gpd
+def generate_rainfall_score():
+    """Annual rainfall: log-normalized total precipitation.
 
-    geojson_path = OUTPUT_DIR / "water-quality.geojson"
-    if not geojson_path.exists():
-        print("  Skipping water quality (no GeoJSON found)")
+    Source: output/rainfall.tif (produced by process_rainfall.py).
+    100 mm/yr → 0.0, 2500 mm/yr → 1.0 (log scale).
+    """
+    tif = OUTPUT_DIR / "rainfall.tif"
+    if not tif.exists():
+        print("  Skipping rainfall (run process_rainfall.py first)")
         return
 
-    print("  Generating water quality score grid...")
-    gdf = gpd.read_file(geojson_path)
-    print(f"    {len(gdf)} county polygons")
+    print("  Generating rainfall score grid...")
+    raw = resample_raster_to_grid(tif)
 
-    gdf["score"] = gdf["drought_score"].fillna(0.7).clip(0, 1).astype(np.float32)
-    score = rasterize_polygons_to_grid(gdf, "score", fill_value=0.7)
-    write_score_grid(score, "water-quality")
+    prec_min, prec_max = 100.0, 2500.0
+    log_min = np.log1p(prec_min)
+    log_max = np.log1p(prec_max)
+    score = np.clip(
+        (np.log1p(np.maximum(raw, 0.0)) - log_min) / (log_max - log_min),
+        0.0, 1.0,
+    ).astype(np.float32)
+    score[np.isnan(raw)] = np.nan
+    write_score_grid(score, "rainfall")
 
 
 def generate_ticks_score():
@@ -447,13 +455,41 @@ def generate_ticks_score():
     write_score_grid(score, "ticks")
 
 
-def generate_temperateness_score():
-    """Temperateness: penalty for hot summers and cold winters.
+def generate_topography_score():
+    """Terrain ruggedness: log-scaled local elevation std dev.
 
-    Score formula (°C):
-      heat_score: 1.0 if tmax ≤ 21.1°C (70°F), 0.0 if tmax ≥ 37.8°C (100°F)
-      cold_score: 1.0 if tmin ≥ 21.1°C (70°F), 0.0 if tmin ≤ -28.9°C (-20°F)
-      temperateness = (heat_score + cold_score) / 2
+    Source: output/topography_stddev.tif (produced by process_topography.py).
+    std_dev ≈ 0 m → score 0.0 (flat), std_dev ≈ 1500 m → score 1.0 (very rugged).
+    """
+    tif = OUTPUT_DIR / "topography_stddev.tif"
+    if not tif.exists():
+        print("  Skipping topography (run process_topography.py first)")
+        return
+
+    print("  Generating topography score grid...")
+    raw = resample_raster_to_grid(tif)
+
+    # Mask nodata sentinel written by process_topography.py
+    raw = np.where(raw < -9000, np.nan, raw)
+
+    max_std_dev = 1500.0
+    score = np.log1p(np.maximum(raw, 0.0)) / np.log1p(max_std_dev)
+    score = np.clip(score, 0.0, 1.0).astype(np.float32)
+    score[np.isnan(raw)] = np.nan
+    write_score_grid(score, "topography")
+
+
+def generate_temperateness_score():
+    """Temperateness: penalty for hot summers, cold winters, and high seasonality.
+
+    Three equal components (°C):
+      heat_score:  1.0 if tmax ≤ 21.1°C (70°F),  0.0 if tmax ≥ 37.8°C (100°F)
+      cold_score:  1.0 if tmin ≥ 21.1°C (70°F),  0.0 if tmin ≤ -28.9°C (-20°F)
+      range_score: 1.0 at 0°C annual swing,        0.0 at 50°C swing
+
+    The range_score penalises continental and high-elevation climates (large
+    swings between summer highs and winter lows) that the heat/cold components
+    alone under-penalise.
     """
     tmax_tif = OUTPUT_DIR / "tmax_hottest.tif"
     tmin_tif = OUTPUT_DIR / "tmin_coldest.tif"
@@ -462,20 +498,68 @@ def generate_temperateness_score():
         return
 
     print("  Generating temperateness score grid...")
-    bio5 = resample_raster_to_grid(tmax_tif)  # max tmax of hottest month (°C)
-    bio6 = resample_raster_to_grid(tmin_tif)  # min tmin of coldest month (°C)
+    bio5 = resample_raster_to_grid(tmax_tif)  # hottest month mean daily max (°C)
+    bio6 = resample_raster_to_grid(tmin_tif)  # coldest month mean daily min (°C)
 
     # Thresholds in °C (70°F = 21.1°C, 100°F = 37.8°C, -20°F = -28.9°C)
-    ideal_c = 21.1
+    ideal_c   = 21.1
     max_hot_c = 37.8
     min_cold_c = -28.9
 
-    heat_score = np.clip((max_hot_c - bio5) / (max_hot_c - ideal_c), 0.0, 1.0)
-    cold_score = np.clip((bio6 - min_cold_c) / (ideal_c - min_cold_c), 0.0, 1.0)
-    score = (heat_score + cold_score) / 2.0
+    heat_score  = np.clip((max_hot_c - bio5)  / (max_hot_c  - ideal_c),   0.0, 1.0)
+    cold_score  = np.clip((bio6 - min_cold_c) / (ideal_c    - min_cold_c), 0.0, 1.0)
+    range_score = np.clip(1.0 - (bio5 - bio6) / 50.0,                     0.0, 1.0)
 
+    score = (heat_score + cold_score + range_score) / 3.0
     score[np.isnan(bio5) | np.isnan(bio6)] = np.nan
     write_score_grid(score.astype(np.float32), "temperateness")
+
+
+def generate_sunshine_score():
+    """Annual solar radiation: proxy for total sunny days per year.
+
+    Source: output/sunshine.tif (produced by process_sunshine.py).
+    Linear mapping: 9 000 kJ/m²/day → 0.0, 23 000 kJ/m²/day → 1.0.
+    """
+    tif = OUTPUT_DIR / "sunshine.tif"
+    if not tif.exists():
+        print("  Skipping sunshine (run process_sunshine.py first)")
+        return
+
+    print("  Generating sunshine score grid...")
+    raw = resample_raster_to_grid(tif)
+
+    srad_min, srad_max = 9_000.0, 23_000.0
+    score = np.clip((raw - srad_min) / (srad_max - srad_min), 0.0, 1.0).astype(np.float32)
+    score[np.isnan(raw)] = np.nan
+    write_score_grid(score, "sunshine")
+
+
+def generate_thunderstorms_score():
+    """Thunderstorm incidence: fewer storm days per year = higher score.
+
+    Source: output/thunderstorms.geojson (produced by process_thunderstorms.py).
+    0 days/yr → 1.0, 100+ days/yr → 0.0.
+    """
+    import geopandas as gpd
+
+    geojson_path = OUTPUT_DIR / "thunderstorms.geojson"
+    if not geojson_path.exists():
+        print("  Skipping thunderstorms (run process_thunderstorms.py first)")
+        return
+
+    print("  Generating thunderstorm score grid...")
+    gdf = gpd.read_file(geojson_path)
+    print(f"    {len(gdf)} county polygons")
+
+    max_days = 100.0
+    median_days = float(gdf["thunder_days"].median())
+    days = gdf["thunder_days"].fillna(median_days).clip(0, max_days)
+    gdf["score"] = (days / max_days).clip(0, 1).astype(np.float32)
+
+    median_score = float(min(median_days, max_days) / max_days)
+    score = rasterize_polygons_to_grid(gdf, "score", fill_value=median_score)
+    write_score_grid(score, "thunderstorms")
 
 
 def main():
@@ -494,12 +578,14 @@ def main():
     generate_protected_areas_score()
     generate_crime_score()
     generate_voting_dem_score()
-    generate_voting_gop_score()
     generate_grocery_score()
     generate_transit_score()
-    generate_water_quality_score()
+    generate_rainfall_score()
     generate_ticks_score()
     generate_temperateness_score()
+    generate_topography_score()
+    generate_sunshine_score()
+    generate_thunderstorms_score()
 
     print()
     print("Done! Score grids written to public/data/")

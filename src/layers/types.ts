@@ -94,6 +94,12 @@ export interface LayerDefinition {
    */
   scoreGridPath?: string;
 
+  /**
+   * URL linking to the authoritative source dataset.
+   * Shown as a clickable citation in the detail panel drilldown.
+   */
+  attributionUrl?: string;
+
   /** Optional: Zillow integration hook for future correlation analysis */
   zillowHook?: {
     correlationField?: string;

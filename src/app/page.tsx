@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import Sidebar from "@/components/Sidebar/Sidebar";
 import SearchBar from "@/components/Search/SearchBar";
@@ -21,11 +21,6 @@ const MapContainer = dynamic(
 );
 
 export default function Home() {
-  // Register all layers on mount (client-side only)
-  useEffect(() => {
-    import("@/layers/init");
-  }, []);
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
   const [clickedPoint, setClickedPoint] = useState<{

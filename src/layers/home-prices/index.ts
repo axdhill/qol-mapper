@@ -67,6 +67,7 @@ const homePricesLayer: LayerDefinition = {
   defaultWeight: 0.05, // Low default weight - informational
   dataAvailable: true,
   scoreGridPath: "/data/home-prices-score",
+  attributionUrl: "https://www.zillow.com/research/data/",
 
   legend: {
     type: "continuous",

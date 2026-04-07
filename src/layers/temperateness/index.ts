@@ -6,7 +6,7 @@ const temperatenessLayer: LayerDefinition = {
   id: "temperateness",
   name: "Temperateness",
   description:
-    "Year-round temperature comfort. Penalizes hot summers and cold winters — a place at 70°F year-round scores perfectly.",
+    "Year-round temperature comfort. Penalizes hot summers, cold winters, and large seasonal swings — a place at 70°F year-round scores perfectly. Continental and high-elevation climates are penalised for wide temperature ranges even when individual seasons seem mild.",
   category: "environmental",
   icon: "Thermometer",
 
@@ -41,6 +41,7 @@ const temperatenessLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/temperateness-score",
+  attributionUrl: "https://worldclim.org/data/worldclim21.html",
 
   legend: {
     type: "continuous",

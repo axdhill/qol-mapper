@@ -63,6 +63,7 @@ const crimeLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/crime-score",
+  attributionUrl: "https://www.countyhealthrankings.org/health-data/methodology-and-sources/data-documentation",
 
   legend: {
     type: "continuous",

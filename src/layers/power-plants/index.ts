@@ -73,6 +73,7 @@ const powerPlantsLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/power-plants-score",
+  attributionUrl: "https://www.epa.gov/egrid",
 
   legend: {
     type: "categorical",

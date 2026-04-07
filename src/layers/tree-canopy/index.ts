@@ -40,6 +40,7 @@ const treeCanopyLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/tree-canopy-score",
+  attributionUrl: "https://glad.umd.edu/dataset/global-forest-change",
 
   legend: {
     type: "continuous",

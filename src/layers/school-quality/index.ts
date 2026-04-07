@@ -63,6 +63,7 @@ const schoolQualityLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/schools-score",
+  attributionUrl: "https://nces.ed.gov/ccd/",
 
   legend: {
     type: "continuous",

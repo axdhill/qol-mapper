@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getAllLayers, getLayersByCategory } from "@/layers/registry";
 import { useLayerStore } from "@/stores/layerStore";
 import { CATEGORY_LABELS, CATEGORY_ORDER } from "@/lib/constants";
@@ -8,15 +8,19 @@ import LayerToggle from "./LayerToggle";
 
 export default function LayerPanel() {
   const initializeLayer = useLayerStore((s) => s.initializeLayer);
+  const [layersReady, setLayersReady] = useState(false);
 
-  // Initialize all layers with default weights on mount
+  // Register all layers, then initialize weights and trigger a re-render.
   useEffect(() => {
-    for (const layer of getAllLayers()) {
-      initializeLayer(layer.id, layer.defaultWeight);
-    }
+    import("@/layers/init").then(() => {
+      for (const layer of getAllLayers()) {
+        initializeLayer(layer.id, layer.defaultWeight);
+      }
+      setLayersReady(true);
+    });
   }, [initializeLayer]);
 
-  const layersByCategory = getLayersByCategory();
+  const layersByCategory = layersReady ? getLayersByCategory() : {};
 
   return (
     <div className="py-2">

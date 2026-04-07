@@ -51,6 +51,7 @@ const transitLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/transit-score",
+  attributionUrl: "https://www.epa.gov/smartgrowth/smart-location-mapping",
 
   legend: {
     type: "continuous",

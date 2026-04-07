@@ -63,6 +63,7 @@ const ticksLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/ticks-score",
+  attributionUrl: "https://www.cdc.gov/lyme/data-research/facts-stats/index.html",
 
   legend: {
     type: "continuous",

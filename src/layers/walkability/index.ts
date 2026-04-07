@@ -55,6 +55,7 @@ const walkabilityLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/walkability-score",
+  attributionUrl: "https://www.epa.gov/smartgrowth/smart-location-mapping",
 
   legend: {
     type: "continuous",

@@ -63,6 +63,7 @@ const waterQualityLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/water-quality-score",
+  attributionUrl: "https://droughtmonitor.unl.edu/",
 
   legend: {
     type: "continuous",

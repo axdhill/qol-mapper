@@ -43,6 +43,7 @@ const noiseLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/noise-score",
+  attributionUrl: "https://www.openstreetmap.org/",
 
   legend: {
     type: "continuous",

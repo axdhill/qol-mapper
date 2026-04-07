@@ -63,6 +63,7 @@ const protectedAreasLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/protected-areas-score",
+  attributionUrl: "https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-download",
 
   legend: {
     type: "categorical",

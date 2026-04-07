@@ -42,6 +42,7 @@ const pm25Layer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/pm25-score",
+  attributionUrl: "https://www.epa.gov/outdoor-air-quality-data",
 
   legend: {
     type: "continuous",

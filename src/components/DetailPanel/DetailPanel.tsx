@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, MapPin, ExternalLink } from "lucide-react";
+import { X, MapPin, ExternalLink, ImageIcon } from "lucide-react";
 import { reverseGeocode } from "@/lib/geocoding";
 import { scoreToColor, scoreToGrade } from "@/lib/scoring";
 import type { CompositeResult } from "@/lib/scoring";
@@ -50,6 +50,20 @@ export default function DetailPanel({
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {placeName && (
+            <button
+              onClick={() =>
+                window.open(
+                  `https://www.google.com/search?q=${encodeURIComponent(placeName)}&tbm=isch`,
+                  "_blank"
+                )
+              }
+              className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded"
+              title={`Google Images: ${placeName}`}
+            >
+              <ImageIcon size={16} />
+            </button>
+          )}
           <button
             onClick={() =>
               window.open(
