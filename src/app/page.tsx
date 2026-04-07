@@ -115,6 +115,8 @@ export default function Home() {
         breakdown.push({
           layerId: layer.id,
           layerName: layer.name,
+          attribution: layer.source.attribution,
+          attributionUrl: layer.attributionUrl,
           rawValue: rawGridValue,
           normalizedScore: score,
           weight: w,
