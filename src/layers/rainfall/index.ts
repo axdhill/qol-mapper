@@ -41,8 +41,8 @@ const rainfallLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/rainfall-score",
-  scoreGridPathWinter: "/data/rainfall-score-winter",
-  scoreGridPathSummer: "/data/rainfall-score-summer",
+  scoreGridPathWinter: "/data/rainfall-winter-score",
+  scoreGridPathSummer: "/data/rainfall-summer-score",
   attributionUrl: "https://worldclim.org/data/worldclim21.html",
 
   legend: {

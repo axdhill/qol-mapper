@@ -41,8 +41,8 @@ const temperatenessLayer: LayerDefinition = {
   defaultWeight: 0.05,
   dataAvailable: true,
   scoreGridPath: "/data/temperateness-score",
-  scoreGridPathWinter: "/data/temperateness-score-winter",
-  scoreGridPathSummer: "/data/temperateness-score-summer",
+  scoreGridPathWinter: "/data/temperateness-winter-score",
+  scoreGridPathSummer: "/data/temperateness-summer-score",
   attributionUrl: "https://worldclim.org/data/worldclim21.html",
 
   legend: {
